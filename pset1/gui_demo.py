@@ -9,13 +9,23 @@ global delay
 global points
 global running
 
-def min_dist_bf(pts):
+def min_dist_bf(pts, ax=None):
     min_i = 0
     min_j = 0
     min_dist = float("inf")
     for i in range(len(pts)-1):
         for j in range(i+1, len(pts)):
             dist = np.sqrt(np.sum((pts[i] - pts[j]) ** 2))
+
+            if ax is not None:
+                cleanup = []
+                cleanup.append(ax.scatter([pts[i, 0], pts[j, 0]], [pts[i, 1], pts[j, 1]], color="gray"))
+                cleanup.extend(ax.plot([pts[i, 0], pts[j, 0]], [pts[i, 1], pts[j, 1]], color="gray"))
+                plt.draw()
+                plt.pause(delay)
+
+                for a in cleanup:
+                    a.remove()
             if dist < min_dist:
                 min_dist = dist
                 min_i = i
@@ -48,8 +58,20 @@ def min_dist_splitting(ax, data):
 
 def min_dist_recurse(ax, data, sorted_x, xmin, xmax):
     if len(sorted_x) == 3 or len(sorted_x) == 2:
-        got = min_dist_bf(data[sorted_x])
+        got = min_dist_bf(data[sorted_x], ax)
         i, j, d = got
+
+        cleanup = []
+        xi, yi = data[sorted_x[i]]
+        xj, yj = data[sorted_x[j]]
+
+        cleanup.append(ax.scatter([xi, xj], [yi, yj], color="red"))
+        cleanup.extend(ax.plot([xi, xj], [yi, yj], color="red"))
+        plt.draw()
+        plt.pause(delay)
+        for a in cleanup:
+            a.remove()
+
         return sorted_x[i], sorted_x[j], d
 
     mid = len(sorted_x) // 2
@@ -57,10 +79,11 @@ def min_dist_recurse(ax, data, sorted_x, xmin, xmax):
 
     # Store this so shading doesn't change limits
     ymin, ymax = ax.get_ylim()
-    cleanup = []
+    gen_cleanup = []
+    best_cleanup = []
 
     # Show midline
-    cleanup.append(ax.axvline(mid_x, linestyle='--', color="black", alpha = 0.7))
+    gen_cleanup.append(ax.axvline(mid_x, linestyle='--', color="black", alpha = 0.7))
     plt.draw()
     plt.pause(delay)
 
@@ -75,8 +98,8 @@ def min_dist_recurse(ax, data, sorted_x, xmin, xmax):
     tmp.remove()
     xi, yi = data[min_i]
     xj, yj = data[min_j]
-    cleanup.append(ax.scatter([xi, xj], [yi, yj], color="red"))
-    cleanup.extend(ax.plot([xi, xj], [yi, yj], color="red"))
+    best_cleanup.append(ax.scatter([xi, xj], [yi, yj], color="red"))
+    best_cleanup.extend(ax.plot([xi, xj], [yi, yj], color="red"))
 
     # Shade region not in recursion
     tmp = ax.fill_betweenx(y=[ymin, ymax], x1=xmin, x2=mid_x, alpha=0.5, color ="black")
@@ -88,8 +111,8 @@ def min_dist_recurse(ax, data, sorted_x, xmin, xmax):
     tmp.remove()
     xi, yi = data[r_i]
     xj, yj = data[r_j]
-    cleanup.append(ax.scatter([xi, xj], [yi, yj], color="red"))
-    cleanup.extend(ax.plot([xi, xj], [yi, yj], color="red"))
+    best_cleanup.append(ax.scatter([xi, xj], [yi, yj], color="red"))
+    best_cleanup.extend(ax.plot([xi, xj], [yi, yj], color="red"))
     plt.draw()
     plt.pause(delay)
 
@@ -98,10 +121,10 @@ def min_dist_recurse(ax, data, sorted_x, xmin, xmax):
         min_j = r_j
         min_d = r_d
 
-    strip_l = mid_x - min_d
-    strip_r = mid_x + min_d
+    strip_l = max(mid_x - min_d, xmin)
+    strip_r = min(mid_x + min_d, xmax)
     sorted_y_data = np.argsort(data[sorted_x, 1])
-    cleanup.append(ax.fill_betweenx(y=[ymin, ymax], x1=strip_l, x2=strip_r, alpha=0.3, color ="red"))
+    gen_cleanup.append(ax.fill_betweenx(y=[ymin, ymax], x1=strip_l, x2=strip_r, alpha=0.3, color ="red"))
     plt.draw()
     plt.pause(delay)
 
@@ -118,11 +141,30 @@ def min_dist_recurse(ax, data, sorted_x, xmin, xmax):
             if xj < strip_l or xj > strip_r:
                 continue
             d = np.sqrt(np.sum((data[real_i] - data[real_j]) ** 2))
+
+            this_cleanup = []
+            this_cleanup.append(ax.scatter([xi, xj], [yi, yj], color="gray"))
+            this_cleanup.extend(ax.plot([xi, xj], [yi, yj], color="gray"))
+            plt.draw()
+            plt.pause(delay)
+            for a in this_cleanup:
+                a.remove()
+
             if d < min_d:
+                for a in best_cleanup:
+                    a.remove()
+                best_cleanup = []
+                best_cleanup.append(ax.scatter([xi, xj], [yi, yj], color="red"))
+                best_cleanup.extend(ax.plot([xi, xj], [yi, yj], color="red"))
+                plt.draw()
+                plt.pause(delay)
+
                 min_d = d
                 min_i = real_i
                 min_j = real_j
-    for a in cleanup:
+    for a in gen_cleanup:
+        a.remove()
+    for a in best_cleanup:
         a.remove()
     plt.draw()
     return min_i, min_j, min_d
