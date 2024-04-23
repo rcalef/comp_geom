@@ -3,7 +3,6 @@ from math import ceil
 from itertools import combinations
 from typing import List, Optional
 
-import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
